@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breast Cancer Prediction System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🏥 Breast Cancer Prediction System</h1>
+            <p class="subtitle">Machine Learning-Based Tumor Classification</p>
+        </header>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer">
+            <strong>⚠️ Educational Purpose Only</strong><br>
+            This system is strictly for educational purposes and must NOT be used as a medical diagnostic tool. 
+            Always consult qualified healthcare professionals for medical diagnosis and treatment.
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <h2>📊 Enter Tumor Feature Values</h2>
+            
+            <form id="predictionForm">
+                <div class="form-grid">
+                    <!-- Left Column -->
+                    <div class="form-column">
+                        <div class="form-group">
+                            <label for="radius_mean">Mean Radius</label>
+                            <input type="number" id="radius_mean" name="radius_mean" 
+                                   step="0.1" min="0" max="50" value="14.0" required>
+                            <small>Average distance from center to points on perimeter</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="texture_mean">Mean Texture</label>
+                            <input type="number" id="texture_mean" name="texture_mean" 
+                                   step="0.1" min="0" max="50" value="19.0" required>
+                            <small>Standard deviation of gray-scale values</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="area_mean">Mean Area</label>
+                            <input type="number" id="area_mean" name="area_mean" 
+                                   step="1" min="0" max="3000" value="650.0" required>
+                            <small>Average area of the tumor</small>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="form-column">
+                        <div class="form-group">
+                            <label for="concavity_mean">Mean Concavity</label>
+                            <input type="number" id="concavity_mean" name="concavity_mean" 
+                                   step="0.01" min="0" max="1" value="0.1" required>
+                            <small>Severity of concave portions of the contour</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="symmetry_mean">Mean Symmetry</label>
+                            <input type="number" id="symmetry_mean" name="symmetry_mean" 
+                                   step="0.01" min="0" max="1" value="0.18" required>
+                            <small>Symmetry of the tumor</small>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-predict" id="predictBtn">
+                    🔬 Predict Diagnosis
+                </button>
+            </form>
+
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+                <div class="spinner"></div>
+                <p>Analyzing tumor features...</p>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" style="display: none;">
+                <h2>📋 Prediction Result</h2>
+                
+                <div id="predictionResult" class="prediction-box"></div>
+                
+                <div id="predictionMessage" class="message-box"></div>
+
+                <!-- Input Summary -->
+                <div class="input-summary">
+                    <h3>📊 Input Summary</h3>
+                    <div id="inputSummary"></div>
+                </div>
+
+                <div class="reminder">
+                    💡 Remember: This prediction is for educational purposes only. 
+                    Consult a healthcare professional for actual medical diagnosis.
+                </div>
+
+                <button onclick="resetForm()" class="btn-reset">
+                    🔄 New Prediction
+                </button>
+            </div>
+
+            <!-- Error Section -->
+            <div id="errorSection" class="error-box" style="display: none;">
+                <strong>❌ Error</strong>
+                <p id="errorMessage"></p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>Breast Cancer Prediction System | Algorithm: Support Vector Machine (SVM)</p>
+            <p>Educational Project 2026</p>
+        </footer>
+    </div>
+
+    <script>
+        const form = document.getElementById('predictionForm');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorSection = document.getElementById('errorSection');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Hide previous results/errors
+            resultsSection.style.display = 'none';
+            errorSection.style.display = 'none';
+            loadingSpinner.style.display = 'block';
+
+            // Get form data
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                loadingSpinner.style.display = 'none';
+
+                if (data.success) {
+                    // Display results
+                    displayResults(data);
+                } else {
+                    // Display error
+                    displayError(data.error);
+                }
+            } catch (error) {
+                loadingSpinner.style.display = 'none';
+                displayError('Connection error. Please try again.');
+            }
+        });
+
+        function displayResults(data) {
+            // Update prediction result box
+            const resultBox = document.getElementById('predictionResult');
+            resultBox.className = `prediction-box ${data.result_class}`;
+            
+            if (data.result_class === 'benign') {
+                resultBox.innerHTML = '✅ BENIGN (Non-cancerous)';
+            } else {
+                resultBox.innerHTML = '⚠️ MALIGNANT (Cancerous)';
+            }
+
+            // Update message
+            const messageBox = document.getElementById('predictionMessage');
+            messageBox.className = `message-box ${data.result_class === 'benign' ? 'success' : 'warning'}`;
+            messageBox.textContent = data.message;
+
+            // Update input summary
+            const summaryDiv = document.getElementById('inputSummary');
+            let summaryHTML = '<ul>';
+            for (const [key, value] of Object.entries(data.input_values)) {
+                summaryHTML += `<li><strong>${key}:</strong> ${value}</li>`;
+            }
+            summaryHTML += '</ul>';
+            summaryDiv.innerHTML = summaryHTML;
+
+            // Show results section
+            resultsSection.style.display = 'block';
+            
+            // Scroll to results
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function displayError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            errorSection.style.display = 'block';
+            errorSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function resetForm() {
+            form.reset();
+            resultsSection.style.display = 'none';
+            errorSection.style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
